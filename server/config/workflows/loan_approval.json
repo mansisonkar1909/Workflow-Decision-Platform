@@ -1,0 +1,14 @@
+{"id":"loan_approval","version":1,
+ "schema":{"applicantId":{"type":"string","required":true},"name":{"type":"string","required":true},
+  "age":{"type":"number","required":true,"min":0,"max":120},"income":{"type":"number","required":true,"min":0},
+  "amount":{"type":"number","required":true,"min":1},"pan":{"type":"string","required":true}},
+ "start":"mandatory",
+ "stages":{
+  "mandatory":{"type":"rules","rules":[{"id":"R1_age_18_plus","when":{"field":"payload.age","op":"gte","value":18},"onFail":"reject","reason":"Applicant under 18"}],"next":"bureau"},
+  "bureau":{"type":"dependency","service":"creditBureau","input":{"pan":"payload.pan"},"store":"credit","retry":{"attempts":3,"backoffMs":0},"onExhausted":"pending","next":"thresholds"},
+  "thresholds":{"type":"rules","rules":[
+    {"id":"R2_min_credit_score","when":{"field":"credit.score","op":"gte","value":600},"onFail":"reject","reason":"Credit score below 600"},
+    {"id":"R3_amount_within_3x_income","when":{"field":"payload.amount","op":"lte","valueFrom":"payload.income","factor":3},"onFail":"manual_review","reason":"Amount exceeds 3x income"}],"next":"route"},
+  "route":{"type":"branch","branches":[{"when":{"field":"credit.score","op":"gte","value":750},"goto":"approve"}],"default":"standard"},
+  "standard":{"type":"rules","rules":[{"id":"R4_auto_approve_limit","when":{"field":"payload.amount","op":"lte","value":500000},"onFail":"manual_review","reason":"Above auto-approval limit"}],"next":"approve"},
+  "approve":{"type":"outcome","outcome":"approved"}}}
