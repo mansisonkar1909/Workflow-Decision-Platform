@@ -124,4 +124,4 @@ Other scenarios (age 17 gives REJECTED by R1; score 800 skips R4 through the bra
 - [Decision examples](docs/decision-examples.md): real input, rules triggered, outcome and audit reasoning
 
 ## Screenshots
-![Decision view](docs/screenshots/decision.png)
+![Decision view](docs/screenshots/decision.jpeg)
