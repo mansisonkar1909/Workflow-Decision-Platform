@@ -1,0 +1,13 @@
+{"id":"vendor_approval","version":1,
+ "schema":{"vendorName":{"type":"string","required":true},"country":{"type":"string","required":true},
+  "yearsInBusiness":{"type":"number","required":true,"min":0},"annualRevenue":{"type":"number","required":true,"min":0},
+  "hasTaxId":{"type":"boolean","required":true}},
+ "start":"docs",
+ "stages":{
+  "docs":{"type":"rules","rules":[
+    {"id":"V1_tax_id_present","when":{"field":"payload.hasTaxId","op":"eq","value":true},"onFail":"reject","reason":"Missing tax ID"},
+    {"id":"V2_country_allowed","when":{"field":"payload.country","op":"in","value":["IN","US","GB","DE","SG"]},"onFail":"manual_review","reason":"Country needs compliance review"}],"next":"tenure"},
+  "tenure":{"type":"branch","branches":[{"when":{"field":"payload.yearsInBusiness","op":"gte","value":5},"goto":"approve"}],"default":"financials"},
+  "financials":{"type":"rules","rules":[
+    {"id":"V3_min_revenue","when":{"field":"payload.annualRevenue","op":"gte","value":100000},"onFail":"reject","reason":"New vendor below revenue floor"}],"next":"approve"},
+  "approve":{"type":"outcome","outcome":"approved"}}}

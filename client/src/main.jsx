@@ -25,10 +25,11 @@ function App(){
   const load=async id=>{setEx(await api(`/api/requests/${id}/explain`));setAudit(await api(`/api/requests/${id}/audit`));refreshList();};
   const submit=async()=>{
     setBusy(true);setMsg(null);
-    const payload=Object.fromEntries(Object.entries(form).filter(([,v])=>v!=='').map(([k,v])=>[k,schema[k]?.type==='number'?Number(v):v]));
+    const payload=Object.fromEntries(Object.entries(form).filter(([,v])=>v!=='').map(([k,v])=>[k,schema[k]?.type==='number'?Number(v):schema[k]?.type==='boolean'?v==='true':v]));
     await api('/api/simulate/bureau-failures',post('',{count:fail}));
     const r=await api(`/api/workflows/${wf}/requests`,post('',payload),key||undefined);
     if(r.errors) setMsg({err:true,t:'Validation failed: '+r.errors.join('; ')});
+    else if(r.error) setMsg({err:true,t:r.error});
     else{if(r.duplicate)setMsg({t:'Duplicate request detected - returned the original decision (idempotent).'});await load(r.request.id);}
     setBusy(false);};
   const act=async(path,body)=>{setBusy(true);const r=await api(`/api/requests/${ex.requestId}/${path}`,post('',body));
@@ -38,18 +39,20 @@ function App(){
   <header><h1>Workflow Decision Platform</h1><p>Config-driven rules, audit trail, retries and idempotency</p></header>
   <div className="layout"><div>
     <div className="card"><h3>New request</h3>
-      <label>Workflow</label><select value={wf} onChange={e=>setWf(e.target.value)}>{wfs.map(w=><option key={w.id}>{w.id}</option>)}</select>
+      <label>Workflow</label><select value={wf} onChange={e=>{setWf(e.target.value);setForm({});}}>{wfs.map(w=><option key={w.id}>{w.id}</option>)}</select>
       {wf==='loan_approval'&&<><label>Quick scenarios</label><div className="chips">
         {Object.entries(PRESETS).map(([n,p])=><button key={n} className="ghost" onClick={()=>setForm(p)}>{n}</button>)}</div></>}
       {Object.entries(schema).map(([k,s])=><div key={k}><label>{k}{s.required&&' *'} <span className="mute">({s.type}{s.min!=null?`, min ${s.min}`:''})</span></label>
-        <input type={s.type==='number'?'number':'text'} value={form[k]??''} onChange={e=>setForm({...form,[k]:e.target.value})}/></div>)}
+        {s.type==='boolean'
+          ? <select value={form[k]??''} onChange={e=>setForm({...form,[k]:e.target.value})}><option value="">Select</option><option value="true">Yes</option><option value="false">No</option></select>
+          : <input type={s.type==='number'?'number':'text'} value={form[k]??''} onChange={e=>setForm({...form,[k]:e.target.value})}/>}</div>)}
       <label>Idempotency key (optional - reuse to test duplicates)</label><input value={key} onChange={e=>setKey(e.target.value)} placeholder="e.g. demo-123"/>
       <label>Simulate credit-bureau failures</label>
       <select value={fail} onChange={e=>setFail(+e.target.value)}><option value={0}>None</option><option value={2}>2 failures (recovers via retry)</option><option value={3}>3 failures (goes to PENDING_RETRY)</option></select>
       <div className="row"><button disabled={busy||!wf} onClick={submit}>{busy?'Processing...':'Submit request'}</button></div>
     </div>
     <div className="card"><h3>Recent requests</h3>{list.length===0&&<div className="mute">None yet</div>}
-      {list.map(r=><div key={r.id} className="hist" onClick={()=>load(r.id)}><span>{r.payload?.name||r.id.slice(0,8)}<br/><span className="mute">{r.workflowId}@v{r.workflowVersion}</span></span><Badge s={r.status}/></div>)}</div>
+      {list.map(r=><div key={r.id} className="hist" onClick={()=>load(r.id)}><span>{r.payload?.name||r.payload?.vendorName||r.payload?.claimId||r.id.slice(0,8)}<br/><span className="mute">{r.workflowId}@v{r.workflowVersion}</span></span><Badge s={r.status}/></div>)}</div>
   </div><div>
     {msg&&<div className={`alert ${msg.err?'err':''}`}>{msg.t}</div>}
     {!ex?<div className="card empty">Submit a request or pick a scenario to see the decision explanation.</div>:<>

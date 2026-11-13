@@ -1,0 +1,13 @@
+{"id":"claim_processing","version":1,
+ "schema":{"claimId":{"type":"string","required":true},"policyNo":{"type":"string","required":true},
+  "amount":{"type":"number","required":true,"min":1},"priorClaims":{"type":"number","required":true,"min":0},
+  "incidentType":{"type":"string","required":true,"enum":["accident","theft","medical"]}},
+ "start":"policy",
+ "stages":{
+  "policy":{"type":"dependency","service":"policyService","input":{"policyNo":"payload.policyNo"},"store":"policy","retry":{"attempts":3,"backoffMs":0},"onExhausted":"manual_review","next":"eligibility"},
+  "eligibility":{"type":"rules","rules":[
+    {"id":"C1_policy_active","when":{"field":"policy.active","op":"eq","value":true},"onFail":"reject","reason":"Policy not active"},
+    {"id":"C2_within_coverage","when":{"field":"payload.amount","op":"lte","valueFrom":"policy.coverageLimit"},"onFail":"reject","reason":"Claim exceeds coverage limit"}],"next":"risk"},
+  "risk":{"type":"rules","rules":[
+    {"id":"C3_low_risk","when":{"all":[{"field":"payload.amount","op":"lte","value":50000},{"field":"payload.priorClaims","op":"lt","value":3}]},"onFail":"manual_review","reason":"High amount or frequent claimant"}],"next":"approve"},
+  "approve":{"type":"outcome","outcome":"approved"}}}
